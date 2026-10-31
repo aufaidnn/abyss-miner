@@ -249,17 +249,17 @@
         </div>
     </div>
 
-    <!-- Modal 3: General Settings & X API v2 Config -->
+    <!-- Modal 3: General Settings & Backend API URL Config -->
     <div id="generalModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-abyss-purpleDark border border-abyss-charcoal w-full max-w-lg rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b border-abyss-charcoal pb-3">
-                <h3 class="font-bold text-lg text-white">⚙️ General Settings & X API v2</h3>
+                <h3 class="font-bold text-lg text-white">⚙️ General Settings & Backend API</h3>
                 <button onclick="closeGeneralModal()" class="text-abyss-gray hover:text-white font-bold">✕</button>
             </div>
             <div class="space-y-4 text-sm">
                 <div>
-                    <label class="block text-abyss-gray mb-1">X API v2 Bearer Token (Tempel Token Aslimu Disini):</label>
-                    <input type="password" id="apiTokenInput" placeholder="Masukkan Bearer Token X Developer..." class="w-full bg-abyss-dark border border-abyss-charcoal rounded-lg p-2.5 text-white font-mono text-xs focus:border-abyss-crimson focus:outline-none">
+                    <label class="block text-abyss-gray mb-1">URL Backend Server Vercel (Endpoint Scraper):</label>
+                    <input type="text" id="backendUrlInput" placeholder="https://abyss-backend.vercel.app/api/scrape" class="w-full bg-abyss-dark border border-abyss-charcoal rounded-lg p-2.5 text-white font-mono text-xs focus:border-abyss-crimson focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-abyss-gray mb-1">Username Jastag / Toko Kamu (Bisa Diubah):</label>
@@ -356,11 +356,11 @@
 
         // Load saved config on startup
         window.addEventListener('DOMContentLoaded', () => {
-            const savedToken = localStorage.getItem('abyss_api_token');
+            const savedBackendUrl = localStorage.getItem('abyss_backend_url');
             const savedUsername = localStorage.getItem('abyss_username');
             const savedTemplate = localStorage.getItem('abyss_template');
             
-            if (savedToken) document.getElementById('apiTokenInput').value = savedToken;
+            if (savedBackendUrl) document.getElementById('backendUrlInput').value = savedBackendUrl;
             if (savedUsername) document.getElementById('targetUsername').value = savedUsername;
             if (savedTemplate) document.getElementById('promoTemplate').value = savedTemplate;
         });
@@ -403,15 +403,15 @@
         function openGeneralModal() { document.getElementById('generalModal').classList.remove('hidden'); document.getElementById('generalModal').classList.add('flex'); }
         function closeGeneralModal() { document.getElementById('generalModal').classList.add('hidden'); document.getElementById('generalModal').classList.remove('flex'); }
         function saveGeneralConfig() { 
-            let token = document.getElementById('apiTokenInput').value.trim();
+            let backendUrl = document.getElementById('backendUrlInput').value.trim();
             let username = document.getElementById('targetUsername').value.trim();
             let template = document.getElementById('promoTemplate').value.trim();
 
-            localStorage.setItem('abyss_api_token', token);
+            localStorage.setItem('abyss_backend_url', backendUrl);
             localStorage.setItem('abyss_username', username);
             localStorage.setItem('abyss_template', template);
 
-            alert('Pengaturan X API v2 & Akun Jastag berhasil disimpan!'); 
+            alert('Pengaturan Backend URL & Akun Jastag berhasil disimpan!'); 
             closeGeneralModal(); 
         }
 
@@ -545,13 +545,12 @@
             });
         }
 
-        // Live Fetch menggunakan Public CORS Proxy dengan penanganan ekspansi user asli
+        // Live Fetch yang terhubung ke Backend Server Vercel
         async function fetchLiveTwitterAPI() {
-            let rawToken = document.getElementById('apiTokenInput') ? document.getElementById('apiTokenInput').value.trim() : '';
-            let bearerToken = rawToken.replace(/[^\x00-\x7F]/g, "");
+            let backendUrl = localStorage.getItem('abyss_backend_url') || document.getElementById('backendUrlInput').value.trim();
             
-            if(!bearerToken) {
-                alert('Mohon masukkan X API v2 Bearer Token milikmu terlebih dahulu melalui menu ⚙️ Settings API di pojok kanan atas!');
+            if(!backendUrl) {
+                alert('Mohon masukkan URL Backend Server Vercel kamu terlebih dahulu melalui menu ⚙️ Settings API!');
                 openGeneralModal();
                 return;
             }
@@ -561,24 +560,18 @@
             btn.disabled = true;
 
             try {
-                let queryParam = encodeURIComponent('wtb (netflix OR canva OR capcut OR joki) -is:retweet');
-                let targetUrl = `https://api.twitter.com/2/tweets/search/recent?query=${queryParam}&max_results=10&tweet.fields=created_at,author_id&expansions=author_id&user.fields=username,name,profile_image_url`;
-                let proxyUrl = `https://corsproxy.io/?` + encodeURIComponent(targetUrl);
-
-                let response = await fetch(proxyUrl, {
+                let response = await fetch(backendUrl, {
                     method: 'GET',
                     headers: {
-                        'Authorization': 'Bearer ' + bearerToken,
                         'Content-Type': 'application/json'
                     }
                 });
 
-                if (!response.ok) {
-                    let errDetail = await response.json().catch(() => ({}));
-                    throw new Error(errDetail.detail || 'Gagal terhubung ke X API v2. Periksa kembali token atau limit akunmu.');
-                }
-
                 let result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || 'Gagal terhubung ke backend server.');
+                }
                 
                 if(!result.data || result.data.length === 0) {
                     alert('Pencarian berhasil, namun belum ada tweet WTB terbaru yang cocok pada detik ini.');
@@ -587,7 +580,6 @@
                     return;
                 }
 
-                // Buat pemetaan (map) user berdasarkan ID agar mendapatkan username asli
                 let userMap = {};
                 if (result.includes && result.includes.users) {
                     result.includes.users.forEach(user => {
