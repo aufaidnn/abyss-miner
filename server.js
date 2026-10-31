@@ -4,7 +4,7 @@ const app = express();
 app.use(express.json());
 
 // Konfigurasi Kredensial X API v2 (Ganti dengan Token Developer kamu)
-const BEARER_TOKEN = 'MASUKKAN_BEARER_TOKEN_KAMU_DISINI';
+const BEARER_TOKEN = process.env.BEARER_TOKEN;
 const X_API_BASE_URL = 'https://api.twitter.com/2';
 
 // 1. Endpoint untuk Menarik / Scraping Tweet WTB secara Live (Recent Search)
@@ -77,7 +77,7 @@ app.post('/api/send-reply', async (req, res) => {
 });
 
 // Jalankan Server Backend di Port 3000
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`[Abyss Miner Backend] Server jalan di http://localhost:${PORT}`);
 });
