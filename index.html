@@ -489,9 +489,10 @@
             });
         }
 
-        // Fungsi Live Fetch menggunakan X Developer API v2 Resmi
+        // Fungsi Live Fetch menggunakan X Developer API v2 Resmi dengan pembersih token
         async function fetchLiveTwitterAPI() {
-            let bearerToken = document.getElementById('apiTokenInput') ? document.getElementById('apiTokenInput').value.trim() : '';
+            let rawToken = document.getElementById('apiTokenInput') ? document.getElementById('apiTokenInput').value.trim() : '';
+            let bearerToken = rawToken.replace(/[^\x00-\x7F]/g, "");
             
             if(!bearerToken) {
                 alert('Mohon masukkan X API v2 Bearer Token milikmu terlebih dahulu melalui menu ⚙️ Settings API di pojok kanan atas!');
@@ -510,7 +511,7 @@
                 let response = await fetch(apiUrl, {
                     method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${bearerToken}`,
+                        'Authorization': 'Bearer ' + bearerToken,
                         'Content-Type': 'application/json'
                     }
                 });
