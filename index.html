@@ -115,7 +115,7 @@
                 <div class="flex items-center gap-3 w-full md:w-auto">
                     <input type="text" id="searchInput" oninput="handleSearch()" placeholder="Cari nama atau isi tweet..." class="px-4 py-2 bg-abyss-dark border border-abyss-charcoal rounded-lg text-sm text-white focus:outline-none focus:border-abyss-crimson w-full md:w-64">
                     <button onclick="fetchLiveTwitterAPI()" class="px-4 py-2 bg-abyss-maroon hover:bg-abyss-crimson text-xs font-bold rounded-lg transition whitespace-nowrap">
-                        ⚡ Fetch X Live
+                        ⚡ Fetch X API v2 (Live)
                     </button>
                 </div>
             </div>
@@ -249,14 +249,18 @@
         </div>
     </div>
 
-    <!-- Modal 3: General Settings & X Jastag Config -->
+    <!-- Modal 3: General Settings & X API v2 Config -->
     <div id="generalModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-abyss-purpleDark border border-abyss-charcoal w-full max-w-lg rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b border-abyss-charcoal pb-3">
-                <h3 class="font-bold text-lg text-white">⚙️ General Settings & Akun Jastag</h3>
+                <h3 class="font-bold text-lg text-white">⚙️ General Settings & X API v2</h3>
                 <button onclick="closeGeneralModal()" class="text-abyss-gray hover:text-white font-bold">✕</button>
             </div>
             <div class="space-y-4 text-sm">
+                <div>
+                    <label class="block text-abyss-gray mb-1">X API v2 Bearer Token (Tempel Token Aslimu Disini):</label>
+                    <input type="password" id="apiTokenInput" placeholder="Masukkan Bearer Token X Developer..." class="w-full bg-abyss-dark border border-abyss-charcoal rounded-lg p-2.5 text-white font-mono text-xs focus:border-abyss-crimson focus:outline-none">
+                </div>
                 <div>
                     <label class="block text-abyss-gray mb-1">Username Jastag / Toko Kamu (Bisa Diubah):</label>
                     <input type="text" id="targetUsername" value="@jasa_alopr" class="w-full bg-abyss-dark border border-abyss-charcoal rounded-lg p-2.5 text-white font-mono focus:border-abyss-crimson focus:outline-none">
@@ -380,7 +384,7 @@
 
         function openGeneralModal() { document.getElementById('generalModal').classList.remove('hidden'); document.getElementById('generalModal').classList.add('flex'); }
         function closeGeneralModal() { document.getElementById('generalModal').classList.add('hidden'); document.getElementById('generalModal').classList.remove('flex'); }
-        function saveGeneralConfig() { alert('Pengaturan Akun Jastag & Template berhasil disimpan!'); closeGeneralModal(); }
+        function saveGeneralConfig() { alert('Pengaturan X API v2 & Akun Jastag berhasil disimpan!'); closeGeneralModal(); }
 
         // Wallet Direct Add
         function openAddWalletModal(walletKey, walletName) {
@@ -485,64 +489,95 @@
             });
         }
 
-        // Fetch live data via Public Web Bridge tanpa backend server
+        // Fungsi Live Fetch menggunakan X Developer API v2 Resmi
         async function fetchLiveTwitterAPI() {
+            let bearerToken = document.getElementById('apiTokenInput') ? document.getElementById('apiTokenInput').value.trim() : '';
+            
+            if(!bearerToken) {
+                alert('Mohon masukkan X API v2 Bearer Token milikmu terlebih dahulu melalui menu ⚙️ Settings API di pojok kanan atas!');
+                openGeneralModal();
+                return;
+            }
+
             const btn = document.querySelector('button[onclick="fetchLiveTwitterAPI()"]');
-            btn.innerText = '⏳ Menambang Leads...';
+            btn.innerText = '⏳ Menambang dari X...';
             btn.disabled = true;
 
             try {
-                let searchQuery = encodeURIComponent('wtb netflix canva capcut #zonauang');
-                let response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://nitter.poast.org/search?q=' + searchQuery)}`);
+                let queryParam = encodeURIComponent('wtb (netflix OR canva OR capcut OR joki) -is:retweet');
+                let apiUrl = `https://api.twitter.com/2/tweets/search/recent?query=${queryParam}&max_results=10&tweet.fields=created_at,author_id`;
+
+                let response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${bearerToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    let errDetail = await response.json().catch(() => ({}));
+                    throw new Error(errDetail.detail || 'Gagal terhubung ke X API v2 (Cek kembali token atau batasan akses tier akunmu).');
+                }
+
+                let result = await response.json();
                 
-                if (!response.ok) throw new Error('Gagal terhubung ke jaringan publik.');
+                if(!result.data || result.data.length === 0) {
+                    alert('Pencarian berhasil, namun belum ada tweet WTB terbaru yang cocok pada detik ini.');
+                    btn.innerText = '⚡ Fetch X API v2 (Live)';
+                    btn.disabled = false;
+                    return;
+                }
+
+                let container = document.getElementById('leadsContainer');
                 
-                setTimeout(() => {
-                    let container = document.getElementById('leadsContainer');
+                result.data.forEach(tweet => {
                     let newCard = document.createElement('div');
-                    newCard.className = 'bg-abyss-purpleDark border border-abyss-crimson rounded-2xl p-5 shadow-lg relative overflow-hidden transition animate-pulse';
+                    newCard.className = 'bg-abyss-purpleDark border border-abyss-crimson rounded-2xl p-5 shadow-lg relative overflow-hidden transition';
                     newCard.setAttribute('data-status', 'new');
                     newCard.setAttribute('data-intent', 'inrush');
                     
+                    let dummyUser = '@buyer_x';
+                    
                     newCard.innerHTML = `
-                        <div class="absolute top-0 right-0 bg-abyss-crimson text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">Live Inrush 🔥</div>
+                        <div class="absolute top-0 right-0 bg-abyss-crimson text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">Live API 🔥</div>
                         <div class="flex items-start justify-between gap-4">
                             <div class="flex items-center gap-3">
-                                <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-abyss-maroon to-abyss-crimson flex items-center font-bold text-white text-lg justify-center shadow">LW</div>
+                                <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-abyss-maroon to-abyss-crimson flex items-center font-bold text-white text-lg justify-center shadow">X</div>
                                 <div>
-                                    <h4 class="font-bold text-white flex items-center gap-2">Live Buyer X <span class="text-xs text-abyss-gray font-normal">@live_wtb_user</span></h4>
-                                    <p class="text-xs text-abyss-gray">Baru saja • via Public Web Bridge #zonauang</p>
+                                    <h4 class="font-bold text-white flex items-center gap-2">Live Buyer <span class="text-xs text-abyss-gray font-normal">${dummyUser}</span></h4>
+                                    <p class="text-xs text-abyss-gray">Baru saja • via X Developer API v2</p>
                                 </div>
                             </div>
                         </div>
                         <div class="mt-4 bg-abyss-dark/50 border border-abyss-charcoal/50 p-3 rounded-xl">
-                            <p class="text-sm text-gray-200">wtb akun netflix sharing yg 1 bulan, ada yg ready ga ya? #zonauang</p>
+                            <p class="text-sm text-gray-200">${tweet.text}</p>
                         </div>
                         <div class="mt-4 flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-abyss-charcoal/50">
                             <div class="flex items-center gap-2">
-                                <span class="px-2.5 py-1 rounded-md bg-abyss-maroon/40 text-abyss-crimson text-xs font-semibold border border-abyss-crimson/30">N Netflix</span>
-                                <span class="px-2.5 py-1 rounded-md bg-emerald-950 text-emerald-400 text-xs font-semibold border border-emerald-800/30">🔥 Live Lead</span>
+                                <span class="px-2.5 py-1 rounded-md bg-abyss-maroon/40 text-abyss-crimson text-xs font-semibold border border-abyss-crimson/30">Live Lead</span>
+                                <span class="px-2.5 py-1 rounded-md bg-emerald-950 text-emerald-400 text-xs font-semibold border border-emerald-800/30">🔥 Hot</span>
                             </div>
                             <div class="flex items-center gap-2 flex-wrap">
-                                <button onclick="openReplyModal('@live_wtb_user', 'jastag', '1234567890')" class="px-3.5 py-2 bg-abyss-crimson hover:bg-abyss-maroon text-xs font-bold rounded-lg transition shadow">💬 Balas Pakai Jastag</button>
-                                <button onclick="openReplyModal('@live_wtb_user', 'template', '1234567890')" class="px-3.5 py-2 bg-abyss-purpleLight hover:bg-abyss-maroon text-xs font-bold rounded-lg transition shadow">✨ Balas Pakai Template</button>
+                                <button onclick="openReplyModal('${dummyUser}', 'jastag', '${tweet.id}')" class="px-3.5 py-2 bg-abyss-crimson hover:bg-abyss-maroon text-xs font-bold rounded-lg transition shadow">💬 Balas Pakai Jastag</button>
+                                <button onclick="openReplyModal('${dummyUser}', 'template', '${tweet.id}')" class="px-3.5 py-2 bg-abyss-purpleLight hover:bg-abyss-maroon text-xs font-bold rounded-lg transition shadow">✨ Balas Pakai Template</button>
                                 <button onclick="openDealModal(this)" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-xs font-bold rounded-lg transition">💰 Deal</button>
                                 <button onclick="toggleBlacklist(this)" class="px-3 py-2 bg-abyss-charcoal hover:bg-red-900/50 text-xs font-medium rounded-lg transition text-abyss-gray hover:text-white">🚫 Blacklist</button>
                             </div>
                         </div>
                     `;
                     container.prepend(newCard);
-                    
-                    btn.innerText = '⚡ Fetch X Live';
-                    btn.disabled = false;
-                    alert('Berhasil menarik leads WTB secara live dari internet!');
-                }, 800);
+                });
+
+                btn.innerText = '⚡ Fetch X API v2 (Live)';
+                btn.disabled = false;
+                alert('Berhasil menarik data tweet asli secara live dari X Developer API!');
 
             } catch (error) {
                 console.error(error);
-                btn.innerText = '⚡ Fetch X Live';
+                btn.innerText = '⚡ Fetch X API v2 (Live)';
                 btn.disabled = false;
-                alert('Gagal memuat data live, silakan coba lagi.');
+                alert('Gagal mengambil data: ' + error.message);
             }
         }
 
